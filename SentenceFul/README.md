@@ -1,11 +1,11 @@
 # SentenceFul
 
-## back
+## Back End
 
 ```
 ```
 
-## front-native
+## Front End (native)
 
 ```
 mv -f front-native front-native.0
