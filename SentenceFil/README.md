@@ -31,4 +31,10 @@ https://www.mdbg.net/chinese/dictionary?page=cc-cedict
 ## Front End (Web)
 
 ```
+mv -f front front.0
+npx create-react-app front
+mv -f front.0/src/* front/src/
+
+cd front
+npm start
 ```
