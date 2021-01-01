@@ -5,6 +5,9 @@
 ### Install
 
 ```
+pip install fastapi
+pip install mariadb
+pip install uvicorn
 ```
 
 ### Run
