@@ -108,79 +108,83 @@ class Phrases:
 
 
 class Route:
+    class Chinese:
+        def __call__(self):
+            @self.app.post(self.root + '/phrases/in_the_sentence')
+            async def phrases__in_the_sentence(request: Request):
+                j = await request.json()
+
+                response = {'phrases': []}
+                
+                for start in range(len(j['input1'])):
+                    found0 = self.phrases.find(j['input1'][start:])
+                    for f in found0:
+                        f['start'] = start
+                    response['phrases'].extend(found0)
+
+                return response
+
+            @self.app.post(self.root + '/phrases/insert_or_update')
+            async def phrases__insert_or_update(request: Request):
+                j = await request.json()
+                
+                row, error = Parse.phrase(j['input2'])
+
+                dbc = db.Chinese(commit=True)
+                if 'id' in row:
+                    dbc.update('phrases',
+                        ['id', 'text', 'note', 'origin'],
+                        [row['id'], row['text'], row['note'], j['origin']],
+                        'id = "{}"'.format(row['id'])
+                    )
+                else:
+                    next_id = 1
+                    for row0 in dbc.select('phrases', ['id'], 'text = "{}"'.format(row['text'])):
+                        next_id = max(next_id, int(row0['id'][row0['id'].index('/') + 1:]) + 1)
+                    row['id'] = '{}/{}'.format(row['text'], next_id)
+
+                    dbc.insert('phrases',
+                        ['id', 'text', 'note', 'origin'],
+                        [row['id'], row['text'], row['note'], j['origin']]
+                    )
+                
+                self.phrases.insert(row)
+
+                return {}
+
+            @self.app.post(self.root + '/phrases/of_the_same')
+            async def phrases__of_the_same(request: Request):
+                j = await request.json()
+
+                response = {'phrases': []}
+
+                phrases = j['input1'].split('\n')
+                if not phrases:
+                    return response
+
+                where = ' OR '.join(['text = "{}"'.format(p.strip()) for p in phrases])
+                for row in db.Chinese().select('phrases', ['id', 'text', 'note'], where):
+                    response['phrases'].append(row)
+
+                return response
+
+            @self.app.post(self.root + '/sentences/insert_or_update')
+            async def sentences__insert_or_update(request: Request):
+                j = await request.json()
+
+        def __init__(self, app):
+            self.phrases = Phrases.Chinese()
+            self.root = '/chinese'
+
+            self.app = app
+
     def __call__(self):
-        self.chinese()
+        Route.Chinese(self.app)()
 
         uvicorn.run(self.app, host='0.0.0.0', port=44400)
 
     def __init__(self, app):
         self.app = app
-
-    def chinese(self, root='/chinese'):
-        chinese_phrases = Phrases.Chinese()
-
-        @self.app.post(root + '/phrases/in_the_sentence')
-        async def phrases__in_the_sentence(request: Request):
-            j = await request.json()
-
-            response = {'phrases': []}
-            
-            for start in range(len(j['input1'])):
-                found0 = chinese_phrases.find(j['input1'][start:])
-                for f in found0:
-                    f['start'] = start
-                response['phrases'].extend(found0)
-
-            return response
-
-        @self.app.post(root + '/phrases/insert_or_update')
-        async def phrases__insert_or_update(request: Request):
-            j = await request.json()
-            
-            row, error = Parse.phrase(j['input2'])
-
-            dbc = db.Chinese(commit=True)
-            if 'id' in row:
-                dbc.update('phrases',
-                    ['id', 'text', 'note', 'origin'],
-                    [row['id'], row['text'], row['note'], j['origin']],
-                    'id = "{}"'.format(row['id'])
-                )
-            else:
-                next_id = 1
-                for row0 in dbc.select('phrases', ['id'], 'text = "{}"'.format(row['text'])):
-                    next_id = max(next_id, int(row0['id'][row0['id'].index('/') + 1:]) + 1)
-                row['id'] = '{}/{}'.format(row['text'], next_id)
-
-                dbc.insert('phrases',
-                    ['id', 'text', 'note', 'origin'],
-                    [row['id'], row['text'], row['note'], j['origin']]
-                )
-            
-            chinese_phrases.insert(row)
-
-            return {}
-
-        @self.app.post(root + '/phrases/of_the_same')
-        async def phrases__of_the_same(request: Request):
-            j = await request.json()
-
-            response = {'phrases': []}
-
-            phrases = j['input1'].split('\n')
-            if not phrases:
-                return response
-
-            where = ' OR '.join(['text = "{}"'.format(p.strip()) for p in phrases])
-            for row in db.Chinese().select('phrases', ['id', 'text', 'note'], where):
-                response['phrases'].append(row)
-
-            return response
-
-        @self.app.post(root + '/sentences/insert_or_update')
-        async def chinese__sentences__insert_or_update(request: Request):
-            j = await request.json()
-            print(j)
 
 
 if __name__ == '__main__':
@@ -188,3 +192,4 @@ if __name__ == '__main__':
         db.Chinese().create()
     elif sys.argv[1] == 'start':
         Route(app)()
+
