@@ -74,8 +74,9 @@ with open('cedict_ts.jsonl', 'wt') as o:
 
             o.write(json.dumps({
                 'id': '{}/{}'.format(p, p2i[p]),
-                'phrase': p,
-                'note': '[{}]{}\n{}\n'.format(d['pinyin'], (note[k] if note else ''), d['english'])
+                'text': p,
+                'note': '[{}]{}\n{}\n'.format(d['pinyin'], (note[k] if note else ''), d['english']).strip(),
+                'origin': 'cedict_ts.u8'
             }) + '\n')
             p2i[p] = p2i[p] + 1
 
@@ -87,3 +88,4 @@ with open('cedict_ts.jsonl') as o:
         if j['id'] in id_set:
             raise RuntimeError
         id_set.add(j['id'])
+
