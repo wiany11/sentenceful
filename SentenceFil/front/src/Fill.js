@@ -3,13 +3,12 @@ import React, {
   useState
 } from 'react';
 
-import Input1 from './Input1'
-import Input2 from './Input2'
-import Phrases from './Phrases'
-import { CheckInput2 } from './lib'
+import InputClickables from './InputClickables'
+import InputEditable from './InputEditable'
+import Output from './Output'
 
 const style = {
-  divLeft: {
+  ofInput: {
     position: 'absolute',
     top: 0,
     right: '50%',
@@ -20,7 +19,7 @@ const style = {
     display: 'flex',
     flexDirection: 'column',
   },
-  divRight: {
+  ofOutput: {
     position: 'absolute',
     top: 0,
     right: 0,
@@ -34,51 +33,161 @@ const style = {
 }
 
 export default function Fill(props) {
-  let checkInput2 = {
-    'phrase': CheckInput2.forPhrase,
-    'sentence': CheckInput2.forSentence,
-  }[props.filling];
+  const [inputEditable, setInputEditable] = useState('');
+  const [inputClickables, setInputClickables] = useState([]);
+  const [output, setOutput] = useState('');
+  const [outputError, setOutputError] = useState('');
+  const [outputParsed, setOutputParsed] = useState({});
 
-  const [input1, setInput1] = useState('');
-  const [input2, setInput2] = useState('');
-  const [input2Error, setInput2Error] = useState('');
-  const [phrases, setPhrases] = useState([]);
+  function toFillPhrases(fill) {
+    fill.setInput2Error('');
 
-  let fill = {
-    input1, setInput1,
-    input2, setInput2,
-    input2Error, setInput2Error,
-    phrases, setPhrases,
+    let input2 = fill.input2.trim();
+    if (input2 === '') {
+      fill.setInput2Error('Empty input');
+      return;
+    }
+
+    let phrases = [...fill.phrases];
+
+    let phraseId = '';
+    let i = input2.indexOf('<id>');
+    if (i > -1) {
+      i += 4;
+      let j = input2.indexOf('</id>', i);
+      if (j > -1) {
+        phraseId = input2.substring(i, j);
+      }
+    }
+
+    let nSelected = 0;
+    phrases.forEach((phrase) => {
+      if (phrase.id === phraseId) {
+        phrase.selected = true;
+        nSelected++;
+      } else {
+        phrase.selected = false;
+      }
+    });
+
+    if (phraseId !== '' && nSelected === 0) {
+      fill.setInput2Error('Unknown ID');
+    }
+
+    fill.setPhrases(phrases);
   }
 
+  function toFillSentences() {
+    setOutputError('');
+
+    let sourceLang = inputEditable;
+    let targetLang = '';
+    let i = sourceLang.indexOf('=====');
+    if (i > -1) {
+      targetLang = sourceLang.substring(i + 5);
+      sourceLang = sourceLang.substring(0, i);
+    }
+    sourceLang = sourceLang.trim();
+    // if (sourceLang === '') {
+    //   setOutputError('No value in source language...');
+    // }
+
+    let note = '';
+    i = targetLang.indexOf('=====');
+    if (i > -1) {
+      note = targetLang.substring(i + 5);
+      targetLang = targetLang.substring(0, i);
+    }
+    note = note.trim();
+    targetLang = targetLang.trim();
+    // if (targetLang === '') {
+    //   setOutputError('No value in target language...');
+    // }
+
+    let output = '' +
+      '<source-language>\n' +
+      sourceLang +
+      '\n</source-language>\n' +
+      '\n<phrases>\n' +
+      inputClickables.filter(ic => ic.selected).map(p => '@[' + p.start + ',' + (p.start + p.text.length) + ') ' + p.id).join('\n') +
+      '\n</phrases>\n' +
+      '\n<target-language>\n' +
+      targetLang +
+      '\n</target-language>\n' +
+      '\n<note>\n' +
+      note +
+      '\n</note>\n';
+
+    setOutput(output);
+  }
+
+  function parseOutputtoFillSentences() {
+    for (let tag of ['source-language', 'target-language']) {
+      let i = output.indexOf(`<${tag}>`);
+      let j = output.indexOf(`</${tag}>`);
+      console.log(i, `<${tag}>`);
+      console.log(j, `</${tag}>`);
+      if (i < 0 || j < 0) {
+        setOutputError(`No <${tag}>`);
+        return;
+      }
+
+      i += tag.length + 2;
+      let v = output.substring(i, j).trim();
+      console.log(tag, i, j, v);
+      if (v === '') {
+        setOutputError(`No value in <${tag}>`);
+        return;
+      }
+    }
+  }
+
+  let createOutput = {
+    phrases: toFillPhrases,
+    sentences: toFillSentences,
+  }[props.filling];
+
+  let fill = {
+    ing: props.filling,
+    inputEditable, setInputEditable,
+    inputClickables, setInputClickables,
+    outputError,
+    output, setOutput
+  };
+
   useEffect(() => {
-    setInput1('你不要再保护我了，那是我作为朋友的拜托。\n# 作为 || 朋友');
+    setInputEditable('你不要再保护我了，那是我作为朋友的拜托。\n=====\n');
   }, []);
 
   useEffect(() => {
-    checkInput2(fill);
-  }, [input2]);
+    createOutput();
+  }, [inputEditable]);
+
+  useEffect(() => {
+    createOutput();
+  }, [inputClickables]);
+
+  useEffect(() => {
+    parseOutputtoFillSentences();
+  }, [output]);
 
   return (
     <div>
-      <div style={style.divLeft}>
-        <Input1
+      <div style={style.ofInput}>
+        <InputEditable
+          backend={props.backend}
           fill={fill}
-          filling={props.filling}
-          // savedInput2ForPhrase={savedInput2ForPhrase}
-          // savedInput2ForSentence={savedInput2ForSentence}
-          // setChangingInput2For={setChangingInput2For}
         />
-        <Phrases
+        <InputClickables
+          backend={props.backend}
           fill={fill}
-          filling={props.filling}
         />
       </div>
-      <Input2
+      <Output
+        backend={props.backend}
         fill={fill}
-        filling={props.filling}
-        style={style.divRight}
+        style={style.ofOutput}
       />
     </div>
-  )
+  );
 }

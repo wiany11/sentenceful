@@ -9,14 +9,22 @@ import {
 import Fill from './Fill'
 
 function App() {
+  let backend = 'http://sentenceful.cafe24.com:44400';
+
   return (
     <Router>
       <Switch>
-        <Route path="/phrase">
-         <Fill filling="phrase"/>
+        <Route path="/phrases">
+          <Fill 
+            backend={backend}
+            filling="phrases"
+          />
         </Route>
-        <Route path="/sentence">
-         <Fill filling="sentence"/>
+        <Route path="/sentences">
+          <Fill
+            backend={backend}
+            filling="sentences"
+          />
         </Route>
       </Switch>
     </Router>
